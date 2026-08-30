@@ -2,8 +2,6 @@
 
 import React, { useState } from "react";
 import { useModuleResults } from "@/lib/context/ModuleResultsContext";
-import { useAuth } from "@/lib/auth-context";
-import { generatePatentDossierPDF } from "@/lib/patent/generatePatentPDF";
 import {
   Lightbulb,
   FileText,
@@ -12,22 +10,18 @@ import {
   ShieldCheck,
   Sparkles,
   Upload,
-  Download,
-  FileDown,
-  Printer,
-  Check,
+  ArrowRight,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function IPPatentIntelligence() {
   const { store, updatePatent } = useModuleResults();
-  const { user } = useAuth();
   const [title, setTitle] = useState(store.patent.inventionTitle);
   const [problem, setProblem] = useState(store.patent.problemSolved);
   const [novelty, setNovelty] = useState(store.patent.technicalNovelty);
   const [mechanism, setMechanism] = useState(store.patent.mechanismSummary);
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [uploadedDoc, setUploadedDoc] = useState<string | null>("Dual_Chamber_CAD_Sketch_v1.pdf");
 
   const handleEvaluatePatent = () => {
@@ -50,29 +44,6 @@ export default function IPPatentIntelligence() {
     }, 1200);
   };
 
-  const handleDownloadPDF = () => {
-    setIsDownloading(true);
-    setTimeout(() => {
-      try {
-        generatePatentDossierPDF({
-          ...store.patent,
-          inventionTitle: title || store.patent.inventionTitle,
-          problemSolved: problem || store.patent.problemSolved,
-          technicalNovelty: novelty || store.patent.technicalNovelty,
-          mechanismSummary: mechanism || store.patent.mechanismSummary,
-          enterpriseName: user?.businessName || "Kisan Agro Processing Cluster",
-          applicantName: user?.fullName || "Enterprise Lead",
-          category: user?.category || "Manufacturing / Agro-Tech",
-          location: user?.location || "Maharashtra, India",
-        });
-      } catch (err) {
-        console.error("PDF generation failed:", err);
-      } finally {
-        setIsDownloading(false);
-      }
-    }, 300);
-  };
-
   return (
     <section id="section-patent" className="scroll-mt-24 w-full space-y-6 text-left">
       {/* Section Header */}
@@ -86,7 +57,7 @@ export default function IPPatentIntelligence() {
               Section 5 • IP &amp; Patents
             </span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-text-slate-900 tracking-tight mt-1">
             IP &amp; Patent Intelligence
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -94,18 +65,8 @@ export default function IPPatentIntelligence() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleDownloadPDF}
-            disabled={isDownloading}
-            className="bg-[#14532D] hover:bg-[#0F3D2E] text-white text-xs font-bold rounded-xl py-2 px-3.5 shadow-xs cursor-pointer flex items-center gap-1.5"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{isDownloading ? "Generating PDF..." : "Download Patent PDF"}</span>
-          </Button>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[#14532D] text-xs font-bold shadow-2xs">
-            <span>80% MSME Fee Waiver Eligible</span>
-          </div>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[#14532D] text-xs font-bold shadow-2xs">
+          <span>80% MSME Fee Waiver Eligible</span>
         </div>
       </div>
 
@@ -134,7 +95,7 @@ export default function IPPatentIntelligence() {
         {/* Left Column: Guided Invention Form (lg:col-span-6) */}
         <div className="lg:col-span-6 space-y-4">
           <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
-            <h4 className="font-bold text-sm text-slate-900 pb-2 border-b border-slate-100">
+            <h4 className="font-bold text-sm text-text-slate-900 pb-2 border-b border-slate-100">
               Invention Technical Specification Form
             </h4>
 
@@ -147,7 +108,7 @@ export default function IPPatentIntelligence() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
                   placeholder="e.g. Dual-Chamber Low-Cost Solar Agro Dehydrator"
                 />
               </div>
@@ -160,7 +121,7 @@ export default function IPPatentIntelligence() {
                   rows={2}
                   value={problem}
                   onChange={(e) => setProblem(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
                   placeholder="Describe crop spoilage, lack of electrical grid, or cost constraints..."
                 />
               </div>
@@ -173,7 +134,7 @@ export default function IPPatentIntelligence() {
                   rows={2}
                   value={novelty}
                   onChange={(e) => setNovelty(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
                   placeholder="Inverted vortex thermal airflow with thermal stone heat-sink retention..."
                 />
               </div>
@@ -186,7 +147,7 @@ export default function IPPatentIntelligence() {
                   rows={2}
                   value={mechanism}
                   onChange={(e) => setMechanism(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
                   placeholder="Uses natural convection to dry produce 3x faster without electric fans..."
                 />
               </div>
@@ -200,7 +161,7 @@ export default function IPPatentIntelligence() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => alert("CAD drawing attached successfully for prior-art comparison.")}
+                  onClick={() => alert("File attachment updated.")}
                   className="text-xs font-bold rounded-xl px-3 cursor-pointer shrink-0"
                 >
                   <Upload className="w-3.5 h-3.5 mr-1" /> Upload
@@ -211,10 +172,9 @@ export default function IPPatentIntelligence() {
             <Button
               onClick={handleEvaluatePatent}
               disabled={isEvaluating}
-              className="w-full bg-[#14532D] hover:bg-[#0F3D2E] text-white text-xs font-bold rounded-xl py-3 shadow-xs cursor-pointer flex items-center justify-center gap-2"
+              className="w-full bg-[#14532D] hover:bg-[#0F3D2E] text-white text-xs font-bold rounded-xl py-3 shadow-xs cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-emerald-300" />
-              <span>{isEvaluating ? "Evaluating Prior Art & Novelty..." : "Evaluate Patent Potential"}</span>
+              {isEvaluating ? "Evaluating Prior Art & Novelty..." : "Evaluate Patent Potential"}
             </Button>
           </div>
         </div>
@@ -229,7 +189,7 @@ export default function IPPatentIntelligence() {
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                   AI Novelty Assessment
                 </span>
-                <h4 className="font-extrabold text-base text-slate-900">
+                <h4 className="font-extrabold text-base text-text-slate-900">
                   {store.patent.patentPotential} Patent Potential
                 </h4>
               </div>
@@ -266,7 +226,7 @@ export default function IPPatentIntelligence() {
                 {store.patent.similarPatents.map((pat, idx) => (
                   <div key={idx} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-bold text-slate-900 block">{pat.title}</span>
+                      <span className="font-bold text-text-slate-900 block">{pat.title}</span>
                       <span className="text-[10.5px] text-slate-500">{pat.patentNo}</span>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
@@ -292,34 +252,6 @@ export default function IPPatentIntelligence() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Impressive Dedicated PDF Export Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#F0FDF4] to-emerald-50/80 border border-emerald-200/90 space-y-2.5 mt-2 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-[#14532D] text-white flex items-center justify-center shadow-xs">
-                    <FileDown className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h5 className="font-extrabold text-xs text-[#14532D] leading-tight">
-                      Official Patent Intelligence Dossier
-                    </h5>
-                    <p className="text-[10.5px] text-slate-600">
-                      Structured column-wise PDF report with IPO checklist &amp; Form 28 subvention.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleDownloadPDF}
-                disabled={isDownloading}
-                className="w-full bg-[#14532D] hover:bg-[#0F3D2E] text-white text-xs font-extrabold rounded-xl py-2.5 shadow-xs cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>{isDownloading ? "Compiling Vector PDF..." : "Download Complete Patent Dossier (PDF)"}</span>
-              </Button>
             </div>
 
           </div>
