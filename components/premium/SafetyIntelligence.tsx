@@ -172,47 +172,45 @@ export default function SafetyIntelligence() {
 
       </div>
 
-      {/* Sensor Controls & Environmental Risk Panel */}
+            {/* Environmental Sensor Telemetry Status (Static Safe Baseline) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+        <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700">
             <span className="flex items-center gap-1.5">
               <Flame className="w-4 h-4 text-amber-600" /> Bay Temperature Sensor
             </span>
-            <span className="text-amber-800 font-extrabold">{tempInput}°C</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-emerald-800 font-black text-sm">28.5°C</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-[#14532D]">
+                Normal
+              </span>
+            </div>
           </div>
-          <input
-            type="range"
-            min="20"
-            max="60"
-            step="0.5"
-            value={tempInput}
-            onChange={(e) => handleUpdateSensors(parseFloat(e.target.value), gasInput)}
-            className="w-full accent-emerald-700 cursor-pointer"
-          />
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-600 rounded-full w-[45%]" />
+          </div>
           <span className="text-[10.5px] text-slate-400 block">
-            Safe Operating Range: 22°C - 38°C (Trigger threshold: &gt;42°C)
+            Safe Operating Range: 22°C – 38°C (Nominal Baseline: 28.5°C)
           </span>
         </div>
 
-        <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+        <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700">
             <span className="flex items-center gap-1.5">
               <Wind className="w-4 h-4 text-blue-600" /> Gas Concentration (PPM)
             </span>
-            <span className="text-blue-800 font-extrabold">{gasInput} ppm</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-blue-800 font-black text-sm">22 ppm</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                Safe
+              </span>
+            </div>
           </div>
-          <input
-            type="range"
-            min="10"
-            max="90"
-            step="1"
-            value={gasInput}
-            onChange={(e) => handleUpdateSensors(tempInput, parseInt(e.target.value))}
-            className="w-full accent-emerald-700 cursor-pointer"
-          />
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-600 rounded-full w-[35%]" />
+          </div>
           <span className="text-[10.5px] text-slate-400 block">
-            Safe Operating Range: 10 - 45 ppm (Hazard threshold: &gt;50 ppm)
+            Safe Operating Range: 10 – 45 ppm (Hazard threshold: &gt;50 ppm)
           </span>
         </div>
       </div>
