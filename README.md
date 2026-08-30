@@ -36,7 +36,7 @@ India’s 63+ million MSMEs contribute nearly 30% of the nation’s GDP and 45% 
 
 ### 2. 🔬 Quality Intelligence & Multimodal Vision Defect AI
 - **Physical Damage & Seal Integrity Detection**:
-  - Leverages Google Gemini Multimodal Vision AI to detect physical damage, open packaging seams, torn wrapper corners, surface discoloration, and dimensional abnormalities.
+  - Leverages Google Gemini Multimodal Vision AI to detect physical damage, open packaging seams, torn seal corners, surface discoloration, and dimensional abnormalities.
 - **Conditional Gating & Zero-Defect Architecture**:
   - Empty-state until a sample image is uploaded.
   - Generates clear findings: e.g., `Packaging Seal Damage Detected (High Severity 95%)` alongside exact corrective actions.
@@ -108,44 +108,9 @@ India’s 63+ million MSMEs contribute nearly 30% of the nation’s GDP and 45% 
 - **Styling & UI**: Vanilla Tailwind CSS, Lucide React, Framer Motion
 - **Data Visualization**: Recharts
 - **AI & Vision Ingestion**:
-  - Google Gemini 2.0 / 1.5 Multimodal Flash Vision API
+  - Google Gemini Multimodal Vision API
   - Sharp Image Buffer Analyzer
 - **State Management**: React Context API (`ModuleResultsContext`, `LanguageContext`, `AuthContext`)
-
----
-
-## 💻 Installation & Local Development
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) v18.18.0 or v20.x or later
-- npm or pnpm
-- Git
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/nirbhay-pabale/Project-Sahayya.git
-cd Project-Sahayya
-```
-
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Setup Environment Variables
-Create a `.env.local` file in the root directory:
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-### 4. Run Development Server
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
 ---
 
