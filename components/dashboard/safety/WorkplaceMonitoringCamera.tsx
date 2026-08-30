@@ -177,9 +177,24 @@ export default function WorkplaceMonitoringCamera({
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-          framePayload = canvas.toDataURL("image/jpeg", 0.6);
+          framePayload = canvas.toDataURL("image/jpeg", 0.65);
+        }
+      } else if (cameraConfig.sourceType === "demo") {
+        try {
+          const demoRes = await fetch("/images/cctv-demo-feed.jpg");
+          if (demoRes.ok) {
+            const blob = await demoRes.blob();
+            framePayload = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (e) {
+          console.warn("[WorkplaceMonitoring] Demo feed frame load notice:", e);
         }
       }
+
 
       const res = await fetch("/api/safety/detect", {
         method: "POST",

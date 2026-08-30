@@ -6,9 +6,9 @@ export const REQUIRED_PPE_ITEMS: RequiredPPEClass[] = [
   "Gloves",
 ];
 
-export const CONFIDENCE_THRESHOLD = 0.5;
+export const CONFIDENCE_THRESHOLD = 0.45;
 
-// Tunable interval settings for polling Vision AI (safe free-tier conservative intervals)
+// Tunable interval settings for polling Vision AI
 export const ENTRY_CHECK_INTERVAL_MS = 15000; // 15 seconds for Panel A
 export const MONITORING_CHECK_INTERVAL_MS = 25000; // 25 seconds for Panel B
 export const DETECTION_INTERVAL_MS = ENTRY_CHECK_INTERVAL_MS;
@@ -19,7 +19,11 @@ export const PPE_CLASS_COLORS: Record<
 > = {
   helmet: { border: "border-amber-500", bg: "bg-amber-500/20", text: "text-amber-300", hex: "#F59E0B" },
   goggles: { border: "border-cyan-400", bg: "bg-cyan-400/20", text: "text-cyan-300", hex: "#06B6D4" },
+  gloves: { border: "border-blue-500", bg: "bg-blue-500/20", text: "text-blue-300", hex: "#3B82F6" },
   Gloves: { border: "border-blue-500", bg: "bg-blue-500/20", text: "text-blue-300", hex: "#3B82F6" },
+  vest: { border: "border-emerald-500", bg: "bg-emerald-500/20", text: "text-emerald-300", hex: "#10B981" },
   Vest: { border: "border-emerald-500", bg: "bg-emerald-500/20", text: "text-emerald-300", hex: "#10B981" },
   mask: { border: "border-purple-400", bg: "bg-purple-400/20", text: "text-purple-300", hex: "#A855F7" },
+  safety_shoe: { border: "border-amber-700", bg: "bg-amber-700/20", text: "text-amber-400", hex: "#D97706" },
 };
+
