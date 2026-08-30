@@ -15,7 +15,6 @@ import DemandIntelligence from "@/components/premium/DemandIntelligence";
 import CreditReadiness from "@/components/premium/CreditReadiness";
 import IPPatentIntelligence from "@/components/premium/IPPatentIntelligence";
 import SchemeIntelligence from "@/components/premium/SchemeIntelligence";
-import BusinessCopilot from "@/components/premium/BusinessCopilot";
 import EarlyWarningRadar from "@/components/premium/EarlyWarningRadar";
 import WhatIfSimulator from "@/components/premium/WhatIfSimulator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -37,7 +36,6 @@ function PremiumDashboardContent() {
     "section-credit",
     "section-patent",
     "section-schemes",
-    "section-copilot",
     "section-radar",
     "section-whatif",
   ];
@@ -90,7 +88,7 @@ function PremiumDashboardContent() {
             Loading Sahayya Premium Dashboard...
           </h3>
           <p className="text-xs text-slate-500">
-            Initializing live CCTV streaming and cross-module neural copilot...
+            Initializing live CCTV streaming and cross-module intelligence...
           </p>
         </div>
       </div>
@@ -214,17 +212,7 @@ function PremiumDashboardContent() {
 
           <div className="h-px bg-slate-200/80 my-8" />
 
-          {/* Section 8: Sahayya Business Copilot (Flagship Centerpiece) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.5 }}
-          >
-            <BusinessCopilot />
-          </motion.div>
-
-          <div className="h-px bg-slate-200/80 my-8" />
+          
 
           {/* Section 9: Early-Warning Radar */}
           <motion.div

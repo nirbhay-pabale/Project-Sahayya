@@ -47,14 +47,6 @@ export default function PremiumSidebar({
     { id: "patent", label: "IP & Patents", targetSection: "section-patent", icon: Lightbulb },
     { id: "schemes", label: "Govt Schemes", targetSection: "section-schemes", icon: Building2 },
     {
-      id: "copilot",
-      label: "Business Copilot",
-      targetSection: "section-copilot",
-      icon: Sparkles,
-      badge: "AI",
-      badgeColor: "bg-emerald-100 text-emerald-800",
-    },
-    {
       id: "radar",
       label: "Early-Warning Radar",
       targetSection: "section-radar",
@@ -124,7 +116,7 @@ export default function PremiumSidebar({
           </h4>
         </div>
         <p className="text-[11px] text-slate-600 leading-snug">
-          All 10 AI modules, live CCTV streaming, and early warning radar are active for your cluster.
+          All enterprise intelligence modules, live CCTV streaming, and early warning radar are active for your cluster.
         </p>
 
         <div className="pt-1.5 border-t border-emerald-200/60 flex items-center gap-1.5 text-[10.5px] font-bold text-emerald-800">

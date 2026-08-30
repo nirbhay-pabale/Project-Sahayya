@@ -78,10 +78,6 @@ India’s 63+ million MSMEs contribute nearly 30% of the nation’s GDP and 45% 
 
 ---
 
-### 6. 🌐 Multilingual Business Copilot & Vernacular Support
-- Full operational interface localization in **English**, **Marathi (मराठी)**, and **Hindi (हिंदी)**.
-- Real-time conversational AI copilot that synthesizes safety logs, quality defects, and financial parameters into conversational insights.
-
 ---
 
 ## 🏗️ Technical Architecture & Stack
@@ -98,7 +94,7 @@ India’s 63+ million MSMEs contribute nearly 30% of the nation’s GDP and 45% 
 ┌──────────────────┐    ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
 │  Safety Vision   │    │  Quality Vision  │ │  Scheme Matcher  │ │ Demand Forecast  │ │ Vernacular i18n  │
 │  Live CCTV PPE   │    │  Gemini Vision   │ │  Rule-Based DB   │ │ Supply Chain     │ │ Marathi / Hindi  │
-│  Browser Webcam  │    │  Damage Detect   │ │  Mudra / CGTMSE  │ │ Recharts Visuals │ │ English Copilot  │
+│  Browser Webcam  │    │  Damage Detect   │ │  Mudra / CGTMSE  │ │ Recharts Visuals │ │ English i18n  │
 └──────────────────┘    └──────────────────┘ └──────────────────┘ └──────────────────┘ └──────────────────┘
 ```
 
@@ -120,7 +116,6 @@ India’s 63+ million MSMEs contribute nearly 30% of the nation’s GDP and 45% 
 Project-Sahayya/
 ├── app/
 │   ├── api/
-│   │   ├── copilot/chat/route.ts      # Multi-turn Copilot synthesis
 │   │   ├── quality/analyze/route.ts   # Multimodal Quality Vision AI
 │   │   ├── safety/detect/route.ts     # PPE & Gate CCTV stream analysis
 │   ├── dashboard/page.tsx             # Executive Main Dashboard
@@ -150,7 +145,7 @@ Project-Sahayya/
 | **PPE Safety Compliance** | Manual clipboards / Unmonitored | Automated real-time CCTV gate check |
 | **Defect Detection** | Manual end-of-line spot checks | Multimodal Vision AI with instant loss metrics |
 | **Scheme Accessibility** | Lost in bureaucratic jargon | Instant 10-point deterministic scheme matching |
-| **Language Barrier** | English-only enterprise ERPs | Native Marathi & Hindi voice/text synthesis |
+| **Language Barrier** | English-only enterprise ERPs | Native Marathi & Hindi vernacular support |
 | **IP / Patent Guidance** | High legal fees ($$$) | Guided novelty check & 80% fee waiver forms |
 
 ---

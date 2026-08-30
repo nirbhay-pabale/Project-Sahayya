@@ -197,12 +197,7 @@ export default function PremiumTopHeader({
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onScrollToSection && onScrollToSection("section-copilot")}
-                className="cursor-pointer text-xs font-semibold text-[#14532D] hover:bg-emerald-50 rounded-xl"
-              >
-                <Sparkles className="w-3.5 h-3.5 mr-2 text-emerald-700" /> Sahayya Copilot
-              </DropdownMenuItem>
+
               <DropdownMenuItem
                 onClick={() => onScrollToSection && onScrollToSection("section-score")}
                 className="cursor-pointer text-xs font-medium text-slate-700 rounded-xl"
