@@ -16,7 +16,6 @@ import {
   Globe,
   Wifi,
   Info,
-  CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,14 +24,34 @@ interface WorkplaceMonitoringCameraProps {
   onNewViolationAlert?: (workerId: string, missing: string[]) => void;
 }
 
+// 1. Helper function: If user entered http:// or https://, strip it to extract only IP & Port.
+export const extractPureIpAndPort = (input: string): string => {
+  let clean = input.trim();
+  if (!clean) return "";
+  // Strip any http:// or https:// prefix entered by user
+  clean = clean.replace(/^https?:\/\//i, "");
+  // Strip any trailing slashes or subpaths like /video or /shot.jpg
+  clean = clean.replace(/\/.*$/, "");
+  return clean;
+};
+
+// 2. Helper function: Build single clean http:// URL internally
+export const buildCleanHttpUrl = (input: string): string => {
+  const pureIp = extractPureIpAndPort(input);
+  if (!pureIp) return "";
+  return `http://${pureIp}`;
+};
+
 export default function WorkplaceMonitoringCamera({
   onNewViolationAlert,
 }: WorkplaceMonitoringCameraProps) {
   const { store, updateSafety } = useModuleResults();
   const [modalOpen, setModalOpen] = useState(false);
 
-  const [phoneIp, setPhoneIp] = useState<string>("192.168.1.50:8080");
-  const [activeStreamUrl, setActiveStreamUrl] = useState<string>("");
+  // Raw user input in text box
+  const [phoneIpInput, setPhoneIpInput] = useState<string>("192.168.1.50:8080");
+  // Active normalized target IP & URL
+  const [activePureIp, setActivePureIp] = useState<string>("192.168.1.50:8080");
   const [streamError, setStreamError] = useState<string | null>(null);
 
   const [cameraConfig, setCameraConfig] = useState<CameraSourceConfig>({
@@ -70,28 +89,25 @@ export default function WorkplaceMonitoringCamera({
   const phoneImgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Robust helper to normalize phone IP/URL input (strips any accidental double http://)
-  const getNormalizedPhoneUrl = (input: string) => {
-    let clean = input.trim();
-    if (!clean) return "";
-    clean = clean.replace(/^(https?:\/\/)+/gi, "");
-    clean = clean.replace(/\/+$/, "");
-    return `http://${clean}`;
-  };
-
-  // Connect Phone Camera IP Webcam
+  // Connect Phone Camera IP Webcam Handler
   const handleConnectPhoneCctv = () => {
-    const baseUrl = getNormalizedPhoneUrl(phoneIp);
-    if (!baseUrl) return;
+    const pureIp = extractPureIpAndPort(phoneIpInput);
+    if (!pureIp) {
+      setStreamError("Please enter a valid IP address and Port (e.g. 192.168.1.50:8080).");
+      return;
+    }
 
     setStreamError(null);
-    const proxyStreamUrl = `/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/video`)}`;
-    setActiveStreamUrl(proxyStreamUrl);
+    setActivePureIp(pureIp);
+    // Automatically update text input box to pure clean IP format
+    setPhoneIpInput(pureIp);
+
+    const cleanHttpUrl = `http://${pureIp}`;
 
     setCameraConfig({
       sourceType: "ipwebcam",
       cameraName: "Bay 04 Main CCTV Feed (Phone Cam)",
-      streamUrl: baseUrl,
+      streamUrl: cleanHttpUrl,
     });
   };
 
@@ -121,10 +137,12 @@ export default function WorkplaceMonitoringCamera({
   // Sync modal save with phone active stream if ipwebcam selected
   useEffect(() => {
     if (cameraConfig.sourceType === "ipwebcam" && cameraConfig.streamUrl) {
-      const baseUrl = getNormalizedPhoneUrl(cameraConfig.streamUrl);
-      setPhoneIp(cameraConfig.streamUrl);
-      setStreamError(null);
-      setActiveStreamUrl(`/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/video`)}`);
+      const pureIp = extractPureIpAndPort(cameraConfig.streamUrl);
+      if (pureIp) {
+        setActivePureIp(pureIp);
+        setPhoneIpInput(pureIp);
+        setStreamError(null);
+      }
     }
   }, [cameraConfig.sourceType, cameraConfig.streamUrl]);
 
@@ -140,8 +158,8 @@ export default function WorkplaceMonitoringCamera({
 
       if (cameraConfig.sourceType === "ipwebcam") {
         try {
-          const baseUrl = getNormalizedPhoneUrl(phoneIp);
-          const snapshotUrl = `/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/shot.jpg`)}`;
+          const cleanHttp = `http://${activePureIp}`;
+          const snapshotUrl = `/api/camera-proxy?url=${encodeURIComponent(`${cleanHttp}/shot.jpg`)}`;
           const shotRes = await fetch(snapshotUrl);
           if (shotRes.ok) {
             const blob = await shotRes.blob();
@@ -218,7 +236,7 @@ export default function WorkplaceMonitoringCamera({
       setIsProcessing(false);
       isRequestInFlightRef.current = false;
     }
-  }, [cameraConfig.sourceType, onNewViolationAlert, phoneIp, store.safety.gasReading, store.safety.temperatureReading, updateSafety]);
+  }, [activePureIp, cameraConfig.sourceType, onNewViolationAlert, store.safety.gasReading, store.safety.temperatureReading, updateSafety]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -230,6 +248,7 @@ export default function WorkplaceMonitoringCamera({
 
   const isDemo = cameraConfig.sourceType === "demo";
   const isPhoneCam = cameraConfig.sourceType === "ipwebcam";
+  const cleanPhoneHttpUrl = buildCleanHttpUrl(activePureIp);
 
   return (
     <div className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4 text-left">
@@ -273,7 +292,6 @@ export default function WorkplaceMonitoringCamera({
               cameraName: "Bay 04 Main CCTV Feed",
               streamUrl: "rtsp://192.168.1.120:554/live/ch0",
             });
-            setActiveStreamUrl("");
             setStreamError(null);
           }}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
@@ -316,13 +334,23 @@ export default function WorkplaceMonitoringCamera({
           </div>
 
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={phoneIp}
-              onChange={(e) => setPhoneIp(e.target.value)}
-              placeholder="e.g. 192.168.1.50:8080"
-              className="flex-1 px-3.5 py-2 rounded-xl border border-emerald-300 text-xs font-mono font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
-            />
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={phoneIpInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // If user pastes http:// or https://, auto-strip it to keep pure IP:Port in input field
+                  if (val.match(/^https?:\/\//i)) {
+                    setPhoneIpInput(extractPureIpAndPort(val));
+                  } else {
+                    setPhoneIpInput(val);
+                  }
+                }}
+                placeholder="e.g. 192.168.1.50:8080"
+                className="w-full px-3.5 py-2 rounded-xl border border-emerald-300 text-xs font-mono font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+              />
+            </div>
             <Button
               size="sm"
               onClick={handleConnectPhoneCctv}
@@ -335,7 +363,7 @@ export default function WorkplaceMonitoringCamera({
           <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200/60 text-[11px] text-slate-600 flex items-start gap-2">
             <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
             <p className="leading-snug">
-              <strong>Phone as CCTV Feed:</strong> Open <em>IP Webcam</em> app on your phone, tap <strong>&quot;Start server&quot;</strong>, and enter the IP address shown at the bottom of your phone screen (e.g. <code>192.168.1.50:8080</code>).
+              <strong>IP Format Auto-Check:</strong> You can enter <code>192.168.1.50:8080</code> or <code>http://192.168.1.50:8080</code>. If <code>http://</code> is entered, it automatically strips it to accept pure IP &amp; Port and constructs <code>http://</code> internally!
             </p>
           </div>
         </div>
@@ -359,20 +387,16 @@ export default function WorkplaceMonitoringCamera({
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             ref={phoneImgRef}
-            src={
-              activeStreamUrl ||
-              `/api/camera-proxy?url=${encodeURIComponent(`${getNormalizedPhoneUrl(phoneIp)}/video`)}`
-            }
+            src={`${cleanPhoneHttpUrl}/video`}
             alt="Phone Camera CCTV Live Stream"
             className="absolute inset-0 w-full h-full object-contain"
-            onError={() => {
-              console.warn("Could not load phone CCTV stream via proxy, trying direct MJPEG URL fallback...");
-              // Direct browser fallback if proxy hits local subnet restriction
-              const baseUrl = getNormalizedPhoneUrl(phoneIp);
-              if (baseUrl && activeStreamUrl !== `${baseUrl}/video`) {
-                setActiveStreamUrl(`${baseUrl}/video`);
+            onError={(e) => {
+              console.warn("Direct MJPEG stream error, attempting snapshot fallback route...");
+              // Fallback to /shot.jpg snapshot endpoint if MJPEG direct stream is blocked
+              if (phoneImgRef.current && cleanPhoneHttpUrl) {
+                phoneImgRef.current.src = `${cleanPhoneHttpUrl}/shot.jpg?t=${Date.now()}`;
               } else {
-                setStreamError(`Unable to reach http://${phoneIp.replace(/^https?:\/\//i, "")}. Please ensure your phone & computer are connected to the same Wi-Fi network and 'Start server' is active in IP Webcam.`);
+                setStreamError(`Cannot reach ${cleanPhoneHttpUrl}. Ensure your phone & PC are on the same Wi-Fi network and IP Webcam 'Start server' is active.`);
               }
             }}
           />
@@ -437,7 +461,7 @@ export default function WorkplaceMonitoringCamera({
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-0.5">
               {isPhoneCam
-                ? `IP WEBCAM • ${getNormalizedPhoneUrl(phoneIp)}`
+                ? `IP WEBCAM • ${cleanPhoneHttpUrl}`
                 : cameraConfig.sourceType === "rtsp" && cameraConfig.streamUrl
                 ? `RTSP • ${cameraConfig.streamUrl}`
                 : "RTSP • rtsp://192.168.1.120:554/live/ch0"}
@@ -476,7 +500,7 @@ export default function WorkplaceMonitoringCamera({
               {isDemo
                 ? "Demo Feed • Sample footage (Bay 04)"
                 : isPhoneCam
-                ? `IP WEBCAM • ${getNormalizedPhoneUrl(phoneIp)}`
+                ? `IP WEBCAM • ${cleanPhoneHttpUrl}`
                 : `${cameraConfig.sourceType.toUpperCase()} • ${cameraConfig.streamUrl}`}
             </span>
           </div>
