@@ -100,6 +100,7 @@ India’s 63+ million MSMEs contribute nearly 30% of the nation’s GDP and 45% 
 
 ### Core Technologies:
 - **Frontend / Framework**: Next.js 15 (React 19, App Router, Server Actions)
+- **Backend Engine**: Node.js & Express.js (REST API Server Architecture)
 - **Language**: TypeScript 5.0 (Strict Typing & Dev Assertions)
 - **Styling & UI**: Vanilla Tailwind CSS, Lucide React, Framer Motion
 - **Data Visualization**: Recharts
