@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Basic URL validation
-    let targetUrl = url.trim();
-    if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
-      targetUrl = `http://${targetUrl}`;
-    }
+    // Robust URL cleaning to strip accidental redundant http:// or https:// prefixes
+    let raw = url.trim();
+    raw = raw.replace(/^(https?:\/\/)+/gi, "");
+    raw = raw.replace(/\/+$/, "");
+    const targetUrl = `http://${raw}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
