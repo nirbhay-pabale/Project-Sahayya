@@ -21,24 +21,14 @@ import {
   XCircle,
   Clock,
   Eye,
-  Smartphone,
-  Laptop,
-  Globe,
-  Wifi,
-  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-type CameraMode = "webcam" | "ipwebcam";
 type CameraPermissionState = "idle" | "requesting" | "active" | "denied" | "not_found";
 
 export default function EntryCheckpointCamera() {
   const { store, updateSafety } = useModuleResults();
-
-  const [cameraMode, setCameraMode] = useState<CameraMode>("webcam");
-  const [phoneIp, setPhoneIp] = useState<string>("192.168.1.50:8080");
-  const [activeStreamUrl, setActiveStreamUrl] = useState<string>("");
 
   const [permissionState, setPermissionState] = useState<CameraPermissionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -62,25 +52,12 @@ export default function EntryCheckpointCamera() {
   const lastAnalyzedFrameTimeRef = useRef<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const phoneImgRef = useRef<HTMLImageElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
-  // Helper to normalize phone IP/URL input
-  const getNormalizedPhoneUrl = (input: string) => {
-    let clean = input.trim();
-    if (!clean) return "";
-    if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
-      clean = `http://${clean}`;
-    }
-    // Remove trailing slashes
-    clean = clean.replace(/\/+$/, "");
-    return clean;
-  };
-
-  // Request local laptop browser webcam via getUserMedia
-  const startLaptopCamera = async () => {
+  // Request actual browser webcam via getUserMedia
+  const startCamera = async () => {
     setPermissionState("requesting");
     setErrorMessage(null);
     setHasReceivedFirstCheck(false);
@@ -126,36 +103,7 @@ export default function EntryCheckpointCamera() {
     }
   };
 
-  // Connect Phone Camera IP Webcam
-  const connectPhoneCamera = async () => {
-    const baseUrl = getNormalizedPhoneUrl(phoneIp);
-    if (!baseUrl) {
-      setErrorMessage("Please enter your Phone's IP address (e.g., 192.168.1.50:8080).");
-      setPermissionState("denied");
-      return;
-    }
-
-    setPermissionState("requesting");
-    setErrorMessage(null);
-    setHasReceivedFirstCheck(false);
-
-    // IP Webcam stream URL format: http://<ip>:<port>/video or /video.mjpg
-    const videoStreamUrl = `${baseUrl}/video`;
-    const proxyStreamUrl = `/api/camera-proxy?url=${encodeURIComponent(videoStreamUrl)}`;
-    
-    setActiveStreamUrl(proxyStreamUrl);
-    setPermissionState("active");
-  };
-
-  const startCamera = async () => {
-    if (cameraMode === "webcam") {
-      await startLaptopCamera();
-    } else {
-      await connectPhoneCamera();
-    }
-  };
-
-  // Stop camera tracks and release device / stream
+  // Stop camera tracks and release device
   const stopCamera = () => {
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -164,7 +112,6 @@ export default function EntryCheckpointCamera() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    setActiveStreamUrl("");
     setPermissionState("idle");
     setLiveDetections([]);
     setPresentItems([]);
@@ -185,24 +132,14 @@ export default function EntryCheckpointCamera() {
   const drawOverlay = useCallback(
     (detections: RawPPEDetection[]) => {
       const canvas = overlayCanvasRef.current;
-      if (!canvas) return;
+      const video = videoRef.current;
+      if (!canvas || !video) return;
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      let targetWidth = 640;
-      let targetHeight = 360;
-
-      if (cameraMode === "webcam" && videoRef.current) {
-        targetWidth = videoRef.current.videoWidth || 640;
-        targetHeight = videoRef.current.videoHeight || 360;
-      } else if (cameraMode === "ipwebcam" && phoneImgRef.current) {
-        targetWidth = phoneImgRef.current.naturalWidth || 640;
-        targetHeight = phoneImgRef.current.naturalHeight || 360;
-      }
-
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 360;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       detections.forEach((det) => {
@@ -238,58 +175,35 @@ export default function EntryCheckpointCamera() {
         ctx.fillText(label, x + 6, pillY + 15);
       });
     },
-    [cameraMode]
+    []
   );
 
   // Core Inspection Worker with Single-Flight Guard & Detailed Diagnostics
   const runInspection = useCallback(async () => {
+    // 1. Strict single-flight guard
     if (isRequestInFlightRef.current) return;
 
+    const video = videoRef.current;
     const captureCanvas = captureCanvasRef.current;
-    if (!captureCanvas) return;
+
+    if (!video || video.readyState < 2 || !captureCanvas) return;
 
     const now = Date.now();
-    if (now - lastAnalyzedFrameTimeRef.current < 5000) return;
-
-    let frameBase64 = "";
-
-    if (cameraMode === "webcam") {
-      const video = videoRef.current;
-      if (!video || video.readyState < 2) return;
-
-      captureCanvas.width = 640;
-      captureCanvas.height = 360;
-      const ctx = captureCanvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-      frameBase64 = captureCanvas.toDataURL("image/jpeg", 0.65);
-    } else {
-      // IP Webcam mode: fetch single snapshot via camera proxy or image ref
-      try {
-        const baseUrl = getNormalizedPhoneUrl(phoneIp);
-        const snapshotUrl = `/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/shot.jpg`)}`;
-        
-        const shotRes = await fetch(snapshotUrl);
-        if (shotRes.ok) {
-          const blob = await shotRes.blob();
-          frameBase64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-        }
-      } catch (e) {
-        console.warn("Failed to capture frame from Phone IP Webcam snapshot:", e);
-      }
-    }
-
-    if (!frameBase64) return;
+    if (now - lastAnalyzedFrameTimeRef.current < 6000) return;
 
     isRequestInFlightRef.current = true;
     setIsProcessing(true);
 
     try {
+      captureCanvas.width = 640;
+      captureCanvas.height = 360;
+
+      const ctx = captureCanvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+      const frameBase64 = captureCanvas.toDataURL("image/jpeg", 0.65);
+
       const response = await fetch("/api/safety/detect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,6 +219,13 @@ export default function EntryCheckpointCamera() {
 
       if (response.ok) {
         const data: PPEDetectionResult = await response.json();
+
+        console.log(`[ENTRY CHECK CLIENT SUCCESS] ${new Date().toLocaleTimeString()}`, {
+          present: data.presentItems,
+          missing: data.missingItems,
+          decision: data.entryDecision,
+          reasoning: data.reasoning,
+        });
 
         const returnedDetections = data.detections || [];
         setLiveDetections(returnedDetections);
@@ -351,7 +272,7 @@ export default function EntryCheckpointCamera() {
       setIsProcessing(false);
       isRequestInFlightRef.current = false;
     }
-  }, [cameraMode, drawOverlay, hasReceivedFirstCheck, phoneIp, store.safety.gasReading, store.safety.temperatureReading, updateSafety]);
+  }, [drawOverlay, hasReceivedFirstCheck, store.safety.gasReading, store.safety.temperatureReading, updateSafety]);
 
   // Periodic Frame Detection Loop (every ENTRY_CHECK_INTERVAL_MS = 15000ms)
   useEffect(() => {
@@ -398,7 +319,7 @@ export default function EntryCheckpointCamera() {
             Personal PPE Gate Verification
           </h3>
           <p className="text-xs text-slate-500">
-            Live camera inspection via Laptop Webcam or Phone IP Webcam — ALL 3 items required.
+            Live laptop camera inspection — ALL 3 items required before plant entry.
           </p>
         </div>
 
@@ -406,6 +327,7 @@ export default function EntryCheckpointCamera() {
         <div className="flex items-center gap-2 flex-wrap">
           {permissionState === "active" && (
             <>
+              {/* Check Now Manual Trigger Button */}
               <Button
                 size="sm"
                 variant="outline"
@@ -452,7 +374,7 @@ export default function EntryCheckpointCamera() {
               {permissionState === "requesting" ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Connecting...</span>
+                  <span>Requesting...</span>
                 </>
               ) : (
                 <>
@@ -465,136 +387,37 @@ export default function EntryCheckpointCamera() {
         </div>
       </div>
 
-      {/* CAMERA SOURCE SELECTOR TABS */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200">
-        <button
-          type="button"
-          onClick={() => {
-            if (permissionState === "active") stopCamera();
-            setCameraMode("webcam");
-          }}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            cameraMode === "webcam"
-              ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Laptop className="w-4 h-4 text-emerald-700" />
-          <span>Laptop Web Camera</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (permissionState === "active") stopCamera();
-            setCameraMode("ipwebcam");
-          }}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            cameraMode === "ipwebcam"
-              ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Smartphone className="w-4 h-4 text-emerald-700" />
-          <span>Phone Camera (IP Webcam)</span>
-        </button>
-      </div>
-
-      {/* PHONE CAMERA IP INPUT FIELD BOX */}
-      {cameraMode === "ipwebcam" && (
-        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-              <Globe className="w-4 h-4 text-emerald-700" />
-              <span>Enter Phone Camera IP Address &amp; Port:</span>
-            </label>
-            <span className="text-[10.5px] text-emerald-900 font-medium flex items-center gap-1">
-              <Wifi className="w-3 h-3 text-emerald-600" /> Same Wi-Fi required
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={phoneIp}
-                onChange={(e) => setPhoneIp(e.target.value)}
-                placeholder="e.g. 192.168.1.50:8080"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-300 text-xs font-mono font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
-              />
-            </div>
-            {permissionState !== "active" && (
-              <Button
-                size="sm"
-                onClick={connectPhoneCamera}
-                disabled={permissionState === "requesting"}
-                className="bg-[#14532D] hover:bg-[#0F3D2E] text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 cursor-pointer shadow-xs"
-              >
-                Connect Phone
-              </Button>
-            )}
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200/60 text-[11px] text-slate-600 flex items-start gap-2">
-            <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-            <p className="leading-snug">
-              <strong>How to connect your phone:</strong> Download <em>IP Webcam</em> app on Android/iOS, open it, tap <strong>&quot;Start server&quot;</strong>, and enter the IP address shown at the bottom of your phone screen (e.g. <code>192.168.1.50:8080</code>).
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Real Live Video Feed Area with Absolute Canvas Overlay */}
       <div className="relative w-full h-[260px] sm:h-[300px] rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center select-none shadow-inner">
-        {/* Laptop Web Camera Video Element */}
-        {cameraMode === "webcam" && (
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className={`w-full h-full object-cover transform -scale-x-100 ${
-              permissionState === "active" ? "block" : "hidden"
-            }`}
-          />
-        )}
-
-        {/* Phone IP Webcam MJPEG Image Element */}
-        {cameraMode === "ipwebcam" && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            ref={phoneImgRef}
-            src={activeStreamUrl || "about:blank"}
-            alt="Phone Camera Live Feed"
-            className={`w-full h-full object-contain ${
-              permissionState === "active" && activeStreamUrl ? "block" : "hidden"
-            }`}
-            onError={() => {
-              if (permissionState === "active") {
-                setErrorMessage(`Could not load stream from http://${phoneIp}. Ensure IP Webcam server is started on your phone.`);
-              }
-            }}
-          />
-        )}
+        {/* Real Live Webcam Video Element */}
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className={`w-full h-full object-cover transform -scale-x-100 ${
+            permissionState === "active" ? "block" : "hidden"
+          }`}
+        />
 
         {/* Absolute Canvas Overlay for Real Bounding Boxes */}
         <canvas
           ref={overlayCanvasRef}
-          className={`absolute inset-0 w-full h-full pointer-events-none ${
-            cameraMode === "webcam" ? "transform -scale-x-100" : ""
-          } ${permissionState === "active" ? "block" : "hidden"}`}
+          className={`absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100 ${
+            permissionState === "active" ? "block" : "hidden"
+          }`}
         />
 
         {/* State: Idle / Paused */}
         {permissionState === "idle" && (
           <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-400">
-              {cameraMode === "webcam" ? <Laptop className="w-6 h-6" /> : <Smartphone className="w-6 h-6 text-emerald-400" />}
+              <Camera className="w-6 h-6" />
             </div>
             <div className="space-y-1">
               <h4 className="font-bold text-sm text-slate-200">Checkpoint Paused</h4>
               <p className="text-xs text-slate-400 max-w-[280px]">
-                Click <strong>&quot;Start Checkpoint&quot;</strong> above to open your {cameraMode === "webcam" ? "laptop camera" : "phone camera"} and begin live PPE verification.
+                Click <strong>&quot;Start Checkpoint&quot;</strong> above to open your laptop camera and begin live PPE verification.
               </p>
             </div>
             <Button
@@ -603,36 +426,32 @@ export default function EntryCheckpointCamera() {
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold px-4 py-2 flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Activate {cameraMode === "webcam" ? "Laptop Camera" : "Phone Camera"}</span>
+              <span>Activate Camera</span>
             </Button>
           </div>
         )}
 
-        {/* State: Requesting Camera Permission / Connection */}
+        {/* State: Requesting Camera Permission */}
         {permissionState === "requesting" && (
           <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 text-white">
             <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
-            <h4 className="font-bold text-sm">
-              {cameraMode === "webcam" ? "Waiting for Camera Permission..." : `Connecting to Phone IP (${phoneIp})...`}
-            </h4>
+            <h4 className="font-bold text-sm">Waiting for Camera Permission...</h4>
             <p className="text-xs text-slate-400 max-w-[260px]">
-              {cameraMode === "webcam"
-                ? "Please click 'Allow' in your browser prompt to enable webcam."
-                : "Establishing MJPEG live stream connection to your phone..."}
+              Please click <strong>&quot;Allow&quot;</strong> in your browser prompt to enable live personal PPE inspection.
             </p>
           </div>
         )}
 
-        {/* State: Permission Denied / Error */}
+        {/* State: Permission Denied */}
         {permissionState === "denied" && (
           <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 text-red-200">
             <div className="w-12 h-12 rounded-2xl bg-red-950/60 border border-red-800 flex items-center justify-center text-red-400">
               <VideoOff className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h4 className="font-bold text-sm text-white">Camera Access Error</h4>
+              <h4 className="font-bold text-sm text-white">Camera Access Denied</h4>
               <p className="text-xs text-red-300 max-w-[300px] leading-relaxed">
-                {errorMessage || "Camera connection failed. Please check device settings and try again."}
+                {errorMessage || "Camera access is required for entry verification. Please allow camera permissions and try again."}
               </p>
             </div>
             <Button
@@ -640,7 +459,7 @@ export default function EntryCheckpointCamera() {
               onClick={startCamera}
               className="bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold px-4 py-2 shadow-sm cursor-pointer"
             >
-              Retry Connection
+              Retry Camera Permission
             </Button>
           </div>
         )}
@@ -651,7 +470,7 @@ export default function EntryCheckpointCamera() {
             <VideoOff className="w-8 h-8 text-amber-400" />
             <h4 className="font-bold text-sm text-white">No Camera Detected</h4>
             <p className="text-xs text-slate-400 max-w-[280px]">
-              Please connect a USB webcam or switch to Phone Camera mode.
+              Please connect a USB webcam or enable your device camera to use Entry Checkpoint.
             </p>
           </div>
         )}
@@ -684,7 +503,7 @@ export default function EntryCheckpointCamera() {
         )}
       </div>
 
-      {/* 3 Required PPE Checklist Items Pills */}
+      {/* 3 Required PPE Checklist Items Pills (Helmet, Safety Goggles, Gloves) */}
       <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
         <div className="flex items-center justify-between text-xs font-bold text-slate-600">
           <span className="uppercase tracking-wider text-[10.5px]">Required Entry PPE Checklist ({REQUIRED_PPE_ITEMS.length} Items)</span>
@@ -726,7 +545,7 @@ export default function EntryCheckpointCamera() {
           })}
         </div>
 
-        {/* AI Diagnostics Pill */}
+        {/* AI Diagnostics Pill (shown once check completes) */}
         {hasReceivedFirstCheck && (
           <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 text-[11px] text-slate-600 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-1.5 font-medium truncate max-w-full">
@@ -744,7 +563,7 @@ export default function EntryCheckpointCamera() {
         )}
       </div>
 
-      {/* LIVE ENTRY STATUS BANNER */}
+      {/* LIVE ENTRY STATUS BANNER (Pops up when camera is opened/activated, default DENIED) */}
       <AnimatePresence mode="wait">
         {permissionState === "active" ? (
           entryDecision === "Allowed" && presentItems.length === REQUIRED_PPE_ITEMS.length ? (
