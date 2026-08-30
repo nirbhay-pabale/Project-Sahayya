@@ -9,10 +9,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, Video, Upload, Radio, Check, Settings2, Link2 } from "lucide-react";
+import { Camera, Video, Upload, Radio, Check, Settings2, Link2, Smartphone, Globe } from "lucide-react";
 
 export interface CameraSourceConfig {
-  sourceType: "demo" | "rtsp" | "http" | "video" | "webcam";
+  sourceType: "demo" | "rtsp" | "http" | "video" | "webcam" | "ipwebcam";
   cameraName: string;
   streamUrl: string;
   videoFileName?: string;
@@ -33,7 +33,7 @@ export default function CameraSourceModal({
 }: CameraSourceModalProps) {
   const [sourceType, setSourceType] = useState<CameraSourceConfig["sourceType"]>(config.sourceType);
   const [cameraName, setCameraName] = useState(config.cameraName);
-  const [streamUrl, setStreamUrl] = useState(config.streamUrl);
+  const [streamUrl, setStreamUrl] = useState(config.streamUrl || "192.168.1.50:8080");
   const [selectedFileName, setSelectedFileName] = useState(config.videoFileName || "");
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,7 +47,7 @@ export default function CameraSourceModal({
   const handleSave = () => {
     onSaveConfig({
       sourceType,
-      cameraName: cameraName.trim() || "CCTV Bay Camera 01",
+      cameraName: cameraName.trim() || "Bay 04 Main CCTV Feed",
       streamUrl: streamUrl.trim(),
       videoFileName: selectedFileName,
     });
@@ -65,7 +65,7 @@ export default function CameraSourceModal({
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-slate-500">
-            Connect an RTSP/HTTP IP camera stream, upload a demonstration shop-floor video, or select a secondary video feed.
+            Connect your Phone Camera (IP Webcam), an RTSP/HTTP camera feed, or upload shop-floor demonstration video.
           </DialogDescription>
         </DialogHeader>
 
@@ -79,7 +79,7 @@ export default function CameraSourceModal({
               type="text"
               value={cameraName}
               onChange={(e) => setCameraName(e.target.value)}
-              placeholder="e.g. Bay 04 Assembly Floor CCTV"
+              placeholder="e.g. Bay 04 Main CCTV Feed"
               className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-600"
             />
           </div>
@@ -90,6 +90,19 @@ export default function CameraSourceModal({
               Feed Source Type
             </label>
             <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSourceType("ipwebcam")}
+                className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                  sourceType === "ipwebcam"
+                    ? "bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Smartphone className="w-4 h-4 text-emerald-700" />
+                <span>Phone Camera (IP)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setSourceType("rtsp")}
@@ -118,33 +131,39 @@ export default function CameraSourceModal({
 
               <button
                 type="button"
-                onClick={() => setSourceType("video")}
+                onClick={() => setSourceType("demo")}
                 className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                  sourceType === "video"
+                  sourceType === "demo"
                     ? "bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs"
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <Upload className="w-4 h-4 text-emerald-700" />
-                <span>Demo Video File</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSourceType("webcam")}
-                className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                  sourceType === "webcam"
-                    ? "bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs"
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <Camera className="w-4 h-4 text-emerald-700" />
-                <span>Second Webcam</span>
+                <Video className="w-4 h-4 text-emerald-700" />
+                <span>Demo CCTV Feed</span>
               </button>
             </div>
           </div>
 
-          {/* Conditional Stream URL or File Upload */}
+          {/* Conditional Stream URL / Phone IP input */}
+          {sourceType === "ipwebcam" && (
+            <div className="space-y-1.5 p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+              <label className="text-xs font-bold text-slate-800 block flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Phone Camera IP Address &amp; Port:</span>
+              </label>
+              <input
+                type="text"
+                value={streamUrl}
+                onChange={(e) => setStreamUrl(e.target.value)}
+                placeholder="e.g. 192.168.1.50:8080"
+                className="w-full px-3.5 py-2 rounded-xl border border-emerald-300 text-xs font-mono font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              />
+              <span className="text-[10.5px] text-emerald-900 block leading-snug">
+                Open <strong>IP Webcam</strong> app on phone &gt; Tap &apos;Start server&apos; &gt; Enter IP shown on phone screen.
+              </span>
+            </div>
+          )}
+
           {(sourceType === "rtsp" || sourceType === "http") && (
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -167,38 +186,9 @@ export default function CameraSourceModal({
             </div>
           )}
 
-          {sourceType === "video" && (
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Upload CCTV Recording (MP4 / WebM)
-              </label>
-              <div className="p-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center space-y-2">
-                <input
-                  type="file"
-                  accept="video/mp4,video/webm"
-                  onChange={handleFileUpload}
-                  id="cctv-video-upload"
-                  className="hidden"
-                />
-                <label
-                  htmlFor="cctv-video-upload"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-2xs"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  {selectedFileName ? "Replace Video File" : "Select Video File"}
-                </label>
-                {selectedFileName && (
-                  <p className="text-xs font-semibold text-emerald-800">
-                    Selected: {selectedFileName}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {sourceType === "webcam" && (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-950 border border-emerald-200 text-xs">
-              <strong>Webcam Stand-in:</strong> Uses local video capture device to simulate continuous shop-floor worker monitoring.
+          {sourceType === "demo" && (
+            <div className="p-3.5 rounded-2xl bg-slate-100 text-slate-700 border border-slate-200 text-xs">
+              <strong>Demo CCTV Feed:</strong> Uses sample Bay 04 factory floor surveillance footage for demonstration.
             </div>
           )}
         </div>

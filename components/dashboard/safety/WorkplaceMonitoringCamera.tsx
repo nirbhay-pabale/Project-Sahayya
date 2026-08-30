@@ -12,6 +12,11 @@ import {
   Radio,
   Sparkles,
   RefreshCw,
+  Smartphone,
+  Globe,
+  Wifi,
+  Info,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,6 +29,10 @@ export default function WorkplaceMonitoringCamera({
 }: WorkplaceMonitoringCameraProps) {
   const { store, updateSafety } = useModuleResults();
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [phoneIp, setPhoneIp] = useState<string>("192.168.1.50:8080");
+  const [activeStreamUrl, setActiveStreamUrl] = useState<string>("");
+
   const [cameraConfig, setCameraConfig] = useState<CameraSourceConfig>({
     sourceType: "demo",
     cameraName: "Bay 04 Main CCTV Feed",
@@ -56,7 +65,33 @@ export default function WorkplaceMonitoringCamera({
   const activeAlertedWorkersRef = useRef<Set<string>>(new Set(["Worker A"]));
   const isRequestInFlightRef = useRef<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const phoneImgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Helper to normalize phone IP/URL input
+  const getNormalizedPhoneUrl = (input: string) => {
+    let clean = input.trim();
+    if (!clean) return "";
+    if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
+      clean = `http://${clean}`;
+    }
+    return clean.replace(/\/+$/, "");
+  };
+
+  // Connect Phone Camera IP Webcam
+  const handleConnectPhoneCctv = () => {
+    const baseUrl = getNormalizedPhoneUrl(phoneIp);
+    if (!baseUrl) return;
+
+    const proxyStreamUrl = `/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/video`)}`;
+    setActiveStreamUrl(proxyStreamUrl);
+
+    setCameraConfig({
+      sourceType: "ipwebcam",
+      cameraName: "Bay 04 Main CCTV Feed (Phone Cam)",
+      streamUrl: baseUrl,
+    });
+  };
 
   // Live timestamp timer
   useEffect(() => {
@@ -81,6 +116,15 @@ export default function WorkplaceMonitoringCamera({
     return () => clearInterval(timer);
   }, []);
 
+  // Sync modal save with phone active stream if ipwebcam selected
+  useEffect(() => {
+    if (cameraConfig.sourceType === "ipwebcam" && cameraConfig.streamUrl) {
+      const baseUrl = getNormalizedPhoneUrl(cameraConfig.streamUrl);
+      setPhoneIp(cameraConfig.streamUrl);
+      setActiveStreamUrl(`/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/video`)}`);
+    }
+  }, [cameraConfig.sourceType, cameraConfig.streamUrl]);
+
   // Periodic CCTV multi-worker poll (every MONITORING_CHECK_INTERVAL_MS = 25000ms)
   const pollCctvFeed = useCallback(async () => {
     if (isRequestInFlightRef.current) return;
@@ -90,7 +134,24 @@ export default function WorkplaceMonitoringCamera({
 
     try {
       let framePayload = "";
-      if (videoRef.current && canvasRef.current && cameraConfig.sourceType === "webcam") {
+
+      if (cameraConfig.sourceType === "ipwebcam") {
+        try {
+          const baseUrl = getNormalizedPhoneUrl(phoneIp);
+          const snapshotUrl = `/api/camera-proxy?url=${encodeURIComponent(`${baseUrl}/shot.jpg`)}`;
+          const shotRes = await fetch(snapshotUrl);
+          if (shotRes.ok) {
+            const blob = await shotRes.blob();
+            framePayload = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (e) {
+          console.warn("[WorkplaceMonitoring] Failed to fetch IP Webcam frame snapshot:", e);
+        }
+      } else if (videoRef.current && canvasRef.current && cameraConfig.sourceType === "webcam") {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
         if (ctx) {
@@ -154,7 +215,7 @@ export default function WorkplaceMonitoringCamera({
       setIsProcessing(false);
       isRequestInFlightRef.current = false;
     }
-  }, [cameraConfig.sourceType, onNewViolationAlert, store.safety.gasReading, store.safety.temperatureReading, updateSafety]);
+  }, [cameraConfig.sourceType, onNewViolationAlert, phoneIp, store.safety.gasReading, store.safety.temperatureReading, updateSafety]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -164,7 +225,8 @@ export default function WorkplaceMonitoringCamera({
     return () => clearInterval(interval);
   }, [pollCctvFeed]);
 
-  const isDemo = cameraConfig.sourceType === "demo" || !cameraConfig.streamUrl;
+  const isDemo = cameraConfig.sourceType === "demo";
+  const isPhoneCam = cameraConfig.sourceType === "ipwebcam";
 
   return (
     <div className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4 text-left">
@@ -198,15 +260,109 @@ export default function WorkplaceMonitoringCamera({
         </div>
       </div>
 
-      {/* Video Feed Area: Clear visibility with zero overlapping boxes covering workers */}
+      {/* VIDEO SOURCE QUICK TABS FOR PANEL B */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200">
+        <button
+          type="button"
+          onClick={() => {
+            setCameraConfig({
+              sourceType: "demo",
+              cameraName: "Bay 04 Main CCTV Feed",
+              streamUrl: "rtsp://192.168.1.120:554/live/ch0",
+            });
+            setActiveStreamUrl("");
+          }}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            isDemo
+              ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <Video className="w-4 h-4 text-emerald-700" />
+          <span>Demo CCTV Feed</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            handleConnectPhoneCctv();
+          }}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            isPhoneCam
+              ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <Smartphone className="w-4 h-4 text-emerald-700" />
+          <span>Phone Camera (IP Webcam)</span>
+        </button>
+      </div>
+
+      {/* PHONE CAMERA IP INPUT FIELD BOX FOR CCTV */}
+      {isPhoneCam && (
+        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+              <Globe className="w-4 h-4 text-emerald-700" />
+              <span>Enter Phone CCTV IP Address &amp; Port:</span>
+            </label>
+            <span className="text-[10.5px] text-emerald-900 font-medium flex items-center gap-1">
+              <Wifi className="w-3 h-3 text-emerald-600" /> Same Wi-Fi required
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={phoneIp}
+              onChange={(e) => setPhoneIp(e.target.value)}
+              placeholder="e.g. 192.168.1.50:8080"
+              className="flex-1 px-3.5 py-2 rounded-xl border border-emerald-300 text-xs font-mono font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+            />
+            <Button
+              size="sm"
+              onClick={handleConnectPhoneCctv}
+              className="bg-[#14532D] hover:bg-[#0F3D2E] text-white rounded-xl text-xs font-bold px-4 py-2 shrink-0 cursor-pointer shadow-xs"
+            >
+              Connect Phone CCTV
+            </Button>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200/60 text-[11px] text-slate-600 flex items-start gap-2">
+            <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+            <p className="leading-snug">
+              <strong>Phone as CCTV Feed:</strong> Open <em>IP Webcam</em> app on your phone, tap <strong>&quot;Start server&quot;</strong>, and enter the IP address shown at the bottom of your phone screen. Your phone camera will serve as live Bay 04 CCTV surveillance.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Video Feed Area */}
       <div className="relative w-full aspect-[4/3] sm:min-h-[380px] rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center select-none shadow-2xl">
         
-        {/* Genuine Reference Factory Floor Scene Background */}
-        <img
-          src="/images/cctv-demo-feed.jpg"
-          alt="CCTV Bay 04 Factory Floor Surveillance"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
+        {/* Genuine Reference Factory Floor Scene Background (Used for Demo Mode) */}
+        {isDemo && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src="/images/cctv-demo-feed.jpg"
+            alt="CCTV Bay 04 Factory Floor Surveillance"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+        )}
+
+        {/* Live Phone Camera IP Webcam MJPEG Stream Element */}
+        {isPhoneCam && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            ref={phoneImgRef}
+            src={activeStreamUrl || `/api/camera-proxy?url=${encodeURIComponent(`http://${phoneIp}/video`)}`}
+            alt="Phone Camera CCTV Live Stream"
+            className="absolute inset-0 w-full h-full object-contain"
+            onError={() => {
+              console.warn("Could not load phone CCTV stream");
+            }}
+          />
+        )}
 
         {/* Top-Left Monospace Timestamp HUD Overlay */}
         <div className="absolute top-3.5 left-4 text-white text-xs sm:text-[13px] font-mono font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-wide z-10">
@@ -216,41 +372,41 @@ export default function WorkplaceMonitoringCamera({
         {/* Top-Right Floor Density Pill Overlay */}
         <div className="absolute top-3.5 right-4 bg-[#0F172A]/85 backdrop-blur-md border border-slate-700 text-white text-xs font-mono px-3.5 py-1.5 rounded-2xl flex items-center gap-2 shadow-lg z-10">
           <span className="text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-            Floor Density:
+            FLOOR DENSITY:
           </span>
           <span className="text-[#38BDF8] font-black">{workers.length} Workers</span>
         </div>
 
-        {/* Only render dynamic overlays if NOT in demo mode to prevent doubling over the pre-rendered reference graphic */}
-        {!isDemo && (
-          <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-end">
-            <div className="flex items-center gap-2 flex-wrap">
-              {workers.map((worker) => (
-                <div
-                  key={worker.workerTempId}
-                  className={`px-3 py-1.5 rounded-xl backdrop-blur-md text-xs font-mono font-bold flex items-center gap-2 shadow-lg ${
-                    worker.status === "Compliant"
-                      ? "bg-emerald-950/80 border border-emerald-500/50 text-emerald-200"
-                      : "bg-red-950/80 border border-red-500/50 text-red-200"
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${worker.status === "Compliant" ? "bg-emerald-400" : "bg-red-400 animate-ping"}`} />
-                  <span>{worker.workerTempId}: {worker.status.toUpperCase()}</span>
-                </div>
-              ))}
-            </div>
+        {/* Dynamic Worker Overlay Badges */}
+        <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-end z-10">
+          <div className="flex items-center gap-2 flex-wrap">
+            {workers.map((worker) => (
+              <div
+                key={worker.workerTempId}
+                className={`px-3 py-1.5 rounded-xl backdrop-blur-md text-xs font-mono font-bold flex items-center gap-2 shadow-lg ${
+                  worker.status === "Compliant"
+                    ? "bg-emerald-950/80 border border-emerald-500/50 text-emerald-200"
+                    : "bg-red-950/80 border border-red-500/50 text-red-200"
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${worker.status === "Compliant" ? "bg-emerald-400" : "bg-red-400 animate-ping"}`} />
+                <span>{worker.workerTempId}: {worker.status.toUpperCase()}</span>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Bottom-Left Overlay Badge inside Video Screen */}
         <div className="absolute bottom-3.5 left-4 bg-[#0F172A]/90 backdrop-blur-md border border-slate-700/80 text-white px-3.5 py-2 rounded-2xl flex items-center gap-3 shadow-2xl pointer-events-none z-10">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
           <div className="text-left">
             <div className="font-extrabold text-xs text-white leading-tight">
-              Bay 04 Main CCTV Feed
+              {cameraConfig.cameraName || "Bay 04 Main CCTV Feed"}
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-              {cameraConfig.sourceType === "rtsp" && cameraConfig.streamUrl
+              {isPhoneCam
+                ? `IP WEBCAM • http://${phoneIp}`
+                : cameraConfig.sourceType === "rtsp" && cameraConfig.streamUrl
                 ? `RTSP • ${cameraConfig.streamUrl}`
                 : "RTSP • rtsp://192.168.1.120:554/live/ch0"}
             </div>
@@ -261,7 +417,7 @@ export default function WorkplaceMonitoringCamera({
         {isProcessing && (
           <div className="absolute bottom-3.5 right-4 bg-slate-900/80 text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 backdrop-blur-xs font-mono z-10">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            AI Visual Analysis Active
+            AI Visual Surveillance Active
           </div>
         )}
       </div>
@@ -278,9 +434,18 @@ export default function WorkplaceMonitoringCamera({
                   Demo Feed
                 </span>
               )}
+              {isPhoneCam && (
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Phone Cam CCTV
+                </span>
+              )}
             </div>
             <span className="text-[10.5px] text-slate-500 font-mono">
-              {isDemo ? "Demo Feed • Sample footage (Bay 04)" : `${cameraConfig.sourceType.toUpperCase()} • ${cameraConfig.streamUrl}`}
+              {isDemo
+                ? "Demo Feed • Sample footage (Bay 04)"
+                : isPhoneCam
+                ? `IP WEBCAM • http://${phoneIp}`
+                : `${cameraConfig.sourceType.toUpperCase()} • ${cameraConfig.streamUrl}`}
             </span>
           </div>
         </div>
@@ -319,7 +484,7 @@ export default function WorkplaceMonitoringCamera({
         </div>
       </div>
 
-      {/* Live List of Tracked Workers (Clean Per-Worker Status Cards below feed) */}
+      {/* Live List of Tracked Workers */}
       <WorkerStatusList workers={workers} />
 
       {/* Camera Source Configuration Modal */}
